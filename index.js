@@ -30,6 +30,4 @@ var templateStr = `
 `;
 
 var template = new PanelTemplateParser(templateStr);
-console.log(template.root);
-console.log('------');
-console.log(template.cellsSizes);
+console.log(template.cells);
