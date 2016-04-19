@@ -2,6 +2,7 @@ module.exports = function(template) {
 
 	var windowWidth = process.stdout.columns;
 	var windowHeight = process.stdout.rows;
+
 	var templateRegexes = {
 		root: 		/<root ?(.*?)>([^]*?)<\/root>/,
 		rows: 		/<row ?(.*?)>([^]*?)<\/row>/g,
@@ -33,47 +34,77 @@ module.exports = function(template) {
 		while(matches = templateRegexes.rows.exec(rootBody)) {
 			rows.push({
 				attributes: parseAttributes(matches[1]),
-				columns: parseColumns(matches[2])
+				columns: parseColumns(matches[2]),
 			});
 		}
+
+		var index = -1, sum = 0;
+		for(var i=0; i<rows.length; i++) {
+			var ch = rows[i].attributes.height;
+			if(ch == '*') {
+				index = i;
+			} else {
+				sum += parseInt(ch);
+			}
+		}
+		rows[index].attributes.height = windowHeight - sum - rows.length - 1;
+		rows[0].attributes.yPosition = 1;
+
+		rows.reduce(function(p, c) {
+			c.attributes.yPosition = p.attributes.yPosition + p.attributes.height + 1;
+			return c;
+		});
 		return rows;
 	}
 
-	// Returns [cellsMatrix, cellsSizes]
+
+
 	function getCellsInfo(root) {
-		var result = new Array();
-		var cellsSizes = new Array();
-		var columnsCount = root.attributes.columnsWidths.length;
+		var m 				= new Array();
+		var cells 			= new Array();
+
+		var columnsPositions = root.attributes.columnsWidths.reduce(function(p, c, i) {
+			p[i] = i == 0 ? 1 : p[i-1] + c + 1;
+			return p;
+		}, []);
+
 		var rows = root.rows;
 		for(var i=0; i<rows.length; i++) {
-			for(var j=0; j<columnsCount; j++) {
+			for(var j=0; j<root.attributes.columnsCount; j++) {
 				var column = rows[i].columns[j];
 				if(!column) break;
-
-				while(result[i] && result[i][j] != undefined) {
-					j++;
-				}
+				while(m[i] && m[i][j] != undefined) { j++; }
 
 				var colspan = column.attributes.colspan || 1;
 				var rowspan = column.attributes.rowspan || 1;
-				cellsSizes[i] = cellsSizes[i] || [];
-				cellsSizes[i][j] = [0, 0]
+
+				var cellPosition = {
+					x: columnsPositions[j],
+					y: rows[i].attributes.yPosition,
+					width: 0,
+					height: 0
+				}
 
 				var isWidthCalculated = false;
 				for(var ri = 0; ri < rowspan; ri++) {
 					for(var ci = 0; ci < colspan; ci++) {
-						result[i+ri] = result[i+ri] || new Array();
-						result[i+ri][j+ci] = column;
+						m[i+ri] = m[i+ri] || new Array();
+						m[i+ri][j+ci] = column;
 						if(!isWidthCalculated) {
-							cellsSizes[i][j][0] += root.attributes.columnsWidths[j+ci];
+							cellPosition.width += root.attributes.columnsWidths[j+ci];
 						}
 					}
 					isWidthCalculated = true;
-					cellsSizes[i][j][1] += rows[i+ri].attributes.height;
+					cellPosition.height += rows[i+ri].attributes.height;
 				}
+
+				cells.push({
+					info: column,
+					position: cellPosition
+				})
 			}
 		}
-		return [result, cellsSizes];
+		return cells;
 	}
 
 	var p1 = template.match(templateRegexes.root);
@@ -86,18 +117,6 @@ module.exports = function(template) {
 	});
 	root.attributes.columnsCount = root.attributes.columnsWidths.length;
 
-
-	var index = -1, sum = 0;
-	for(var i=0; i<root.rows.length; i++) {
-		var ch = root.rows[i].attributes.height;
-		if(ch == '*') {
-			index = i;
-		} else {
-			sum += parseInt(ch);
-		}
-	}
-	root.rows[index].attributes.height = windowHeight - sum - root.rows.length - 1;
-
 	var index = -1, sum = 0;
 	for(var i=0; i<root.attributes.columnsCount; i++) {
 		var ch = root.attributes.columnsWidths[i];
@@ -109,11 +128,6 @@ module.exports = function(template) {
 	}
 	root.attributes.columnsWidths[index] = windowWidth - sum - root.attributes.columnsWidths.length - 1;
 
-	var cellsInfo = getCellsInfo(root);
-	var cellsMatrix = cellsInfo[0];
-	var cellsSizes = cellsInfo[1];
-
 	this.root = root;
-	this.cellsMatrix = cellsMatrix;
-	this.cellsSizes = cellsSizes;
+	this.cells = getCellsInfo(root);
 };
