@@ -4,52 +4,61 @@ module.exports = function(template) {
 	var windowHeight = process.stdout.rows;
 
 	var templateRegexes = {
-		root: 		/<root ?(.*?)>([^]*?)<\/root>/,
-		rows: 		/<row ?(.*?)>([^]*?)<\/row>/g,
-		columns: 	/<column ?(.*?)>([^]*?)<\/column>/g,
-		attrs: 		/(\w+)=['"]?(.*?)['"\s]/g
+		get root() 		{ return /<root ?(.*?)>([^]*?)<\/root>/g },
+		get rows() 		{ return /<row ?(.*?)>([^]*?)<\/row>/g },
+		get attrs()		{ return /(\w+)=['"]?(.*?)['"\s]/g },
+		get columns() 	{ return /<column ?(.*?)>([^]*?)<\/column>/g }
 	};
 
+	/**/
+	/* Parse attributes of an element
+	/* @param attributes string
+	/* Returns element attributes dictionary
+	/**/
 	function parseAttributes(attributes) {
-		var matches, result = {};
-		while(matches = templateRegexes.attrs.exec(attributes)) {
+		var matches, result = {}, r = templateRegexes.attrs;
+		while(matches = r.exec(attributes)) {
 			result[matches[1]] = isNaN(matches[2]) ? matches[2] : parseInt(matches[2]);
 		}
 		return result;
 	}
 
-	function parseColumns(rowBody) {
+	/**/
+	/* Parse children from a body of an element
+	/* @param kind of children
+	/* @param parent body
+	/* Returns array of children with their arguments parsed
+	/**/
+	function parseNode(type, body) {
+		var r = templateRegexes[type];
 		var matches, result = [];
-		while(matches = templateRegexes.columns.exec(rowBody)) {
+		var children = {
+			'root': 'rows',
+			'rows': 'columns',
+			// 'columns': 'values'
+		};
+
+		while(matches = r.exec(body)) {
 			result.push({
 				attributes: parseAttributes(matches[1]),
 				body: matches[2]
-			})
-		}
-		return result;
-	}
-
-	function parseRows(rootBody) {
-		var matches, rows = [];
-		while(matches = templateRegexes.rows.exec(rootBody)) {
-			rows.push({
-				attributes: parseAttributes(matches[1]),
-				columns: parseColumns(matches[2]),
 			});
 		}
 
+		return !children[type] ? result : result.forEach(function(parent) {
+			parent[children[type]] = parseNode(children[type], parent.body);
+		}, this), result;
+	}
+
+	function processRows(rows) {
 		var index = -1, sum = 0;
 		for(var i=0; i<rows.length; i++) {
 			var ch = rows[i].attributes.height;
-			if(ch == '*') {
-				index = i;
-			} else {
-				sum += parseInt(ch);
-			}
+			if(ch == '*') { index = i; }
+			else 		  { sum += parseInt(ch); }
 		}
 		rows[index].attributes.height = windowHeight - sum - rows.length - 1;
 		rows[0].attributes.yPosition = 1;
-
 		rows.reduce(function(p, c) {
 			c.attributes.yPosition = p.attributes.yPosition + p.attributes.height + 1;
 			return c;
@@ -57,14 +66,12 @@ module.exports = function(template) {
 		return rows;
 	}
 
-
-
 	function getCellsInfo(root) {
-		var m 				= new Array();
-		var cells 			= new Array();
+		var m 		= new Array();
+		var cells 	= new Array();
 
-		var columnsPositions = root.attributes.columnsWidths.reduce(function(p, c, i) {
-			p[i] = i == 0 ? 1 : p[i-1] + c + 1;
+		var columnsPositions = root.attributes.columnsWidths.reduce(function(p, c, i, arr) {
+			p[i] = i == 0 ? 1 : p[i-1] + arr[i-1] + 1;
 			return p;
 		}, []);
 
@@ -78,11 +85,11 @@ module.exports = function(template) {
 				var colspan = column.attributes.colspan || 1;
 				var rowspan = column.attributes.rowspan || 1;
 
-				var cellPosition = {
+				var frame = {
 					x: columnsPositions[j],
 					y: rows[i].attributes.yPosition,
-					width: 0,
-					height: 0
+					width: colspan - 1,
+					height: rowspan - 1
 				}
 
 				var isWidthCalculated = false;
@@ -91,43 +98,43 @@ module.exports = function(template) {
 						m[i+ri] = m[i+ri] || new Array();
 						m[i+ri][j+ci] = column;
 						if(!isWidthCalculated) {
-							cellPosition.width += root.attributes.columnsWidths[j+ci];
+							frame.width += root.attributes.columnsWidths[j+ci];
 						}
 					}
 					isWidthCalculated = true;
-					cellPosition.height += rows[i+ri].attributes.height;
+					frame.height += rows[i+ri].attributes.height;
 				}
 
 				cells.push({
 					info: column,
-					position: cellPosition
+					frame: frame
 				})
 			}
 		}
 		return cells;
 	}
 
-	var p1 = template.match(templateRegexes.root);
-	var root = {
-		attributes: parseAttributes(p1[1]),
-		rows: parseRows(p1[2])
-	}
-	root.attributes.columnsWidths = root.attributes.columnsWidths.split('|').map(function(width){
-		return width == '*' ? '*' : parseInt(width);
-	});
-	root.attributes.columnsCount = root.attributes.columnsWidths.length;
+	this.root = (function() {
+		var _root = parseNode('root', template)[0];
+		processRows(_root.rows);
 
-	var index = -1, sum = 0;
-	for(var i=0; i<root.attributes.columnsCount; i++) {
-		var ch = root.attributes.columnsWidths[i];
-		if(ch === '*') {
-			index = i;
-		} else {
-			sum += parseInt(ch);
+		_root.attributes.columnsWidths = _root.attributes.columnsWidths.split('|').map(function(width){
+			return width == '*' ? '*' : parseInt(width);
+		});
+		_root.attributes.columnsCount = _root.attributes.columnsWidths.length;
+
+		var index = -1, sum = 0;
+		for(var i=0; i<_root.attributes.columnsCount; i++) {
+			var ch = _root.attributes.columnsWidths[i];
+			if(ch === '*') {
+				index = i;
+			} else {
+				sum += parseInt(ch);
+			}
 		}
-	}
-	root.attributes.columnsWidths[index] = windowWidth - sum - root.attributes.columnsWidths.length - 1;
+		_root.attributes.columnsWidths[index] = windowWidth - sum - _root.attributes.columnsWidths.length - 1;
+		return _root;
+	})();
 
-	this.root = root;
-	this.cells = getCellsInfo(root);
+	this.cells = getCellsInfo(this.root);
 };
