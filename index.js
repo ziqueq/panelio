@@ -4,7 +4,7 @@ var Panel = require('./panel.js')
 var templateStr = `
 	<root columnsWidths='100|*|60'>
 		<row height='8'>
-			<column rowspan='2'>
+			<column rowspan='2' padding='0 1' >
 				<data name='Seconds' value='obj.seconds' />
 				<data name='Minutes' value='obj.minutes' />
 				<data name='Some log' value='log' />

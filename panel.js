@@ -85,7 +85,7 @@ module.exports = function() {
 	function printCellsData() {
 		var panel = this.panel;
 		this.template.cells.forEach(function(cell) {
-			var frame = cell.frame;
+			var frame = cell.dataFrame;
 			var y = frame.y;
 			cell.data.forEach(function(d) {
 				var v = d.name + ': ' + d.valuePath;

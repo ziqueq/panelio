@@ -6,7 +6,7 @@ module.exports = function(template) {
 	var templateRegexes = {
 		get root() 		{ return /<root ?(.*?)>([^]*?)<\/root>/g },
 		get rows() 		{ return /<row ?(.*?)>([^]*?)<\/row>/g },
-		get attrs()		{ return /(\w+)=['"]?(.*?)['"\s]/g },
+		get attrs()		{ return /(\w+)=['"]?(.*?)['"]/g },
 		get columns() 	{ return /<column ?(.*?)>([^]*?)<\/column>/g },
 		get data()		{ return /<data (.*?)\s*\/>/g }
 	};
@@ -78,6 +78,20 @@ module.exports = function(template) {
 		});
 	}
 
+	function getCellDataFrame(column, frame) {
+		// Default padding is 0 1 (top: 0, right: 1, bottom: 0, left: 1)
+		var padding = (column.attributes.padding || '0 1 0 1').split(' ').map(Number);
+		if(padding.length == 2) {
+			padding = padding.concat(padding);
+		}
+		return {
+			x: frame.x + padding[3],
+			y: frame.y + padding[0],
+			width: frame.width - padding[3] - padding[1],
+			height: frame.height - padding[0] - padding[2]
+		}
+	}
+
 	function getCellsInfo(root) {
 		var m 		= new Array();
 		var cells 	= new Array();
@@ -120,6 +134,7 @@ module.exports = function(template) {
 				cells.push({
 					info: column,
 					frame: frame,
+					dataFrame: getCellDataFrame(column, frame),
 					data: processCellData(column)
 				})
 			}
