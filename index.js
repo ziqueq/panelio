@@ -4,12 +4,18 @@ var Panel = require('./panel.js')
 var templateStr = `
 	<root columnsWidths='100|*|60'>
 		<row height='8'>
-			<column rowspan='2'></column>
+			<column rowspan='2'>
+				<data name='Seconds' value='obj.seconds' />
+				<data name='Minutes' value='obj.minutes' />
+				<data name='Some log' value='log' />
+			</column>
 			<column></column>
 			<column></column>
 		</row>
 		<row height='3'>
-			<column></column>
+			<column>
+				<data name='Test var' value='variable.sdfgsdfgsdfga.sdfgsdfgsdfgb.sdfgsdfgsdfgc' />
+			</column>
 			<column></column>
 			<column></column>
 		</row>

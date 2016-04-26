@@ -80,8 +80,27 @@ module.exports = function() {
 
 	/*### Border drawing module ###*/
 
+	/*### Cell data drawing module ###*/
+
+	function printCellsData() {
+		var panel = this.panel;
+		this.template.cells.forEach(function(cell) {
+			var frame = cell.frame;
+			var y = frame.y;
+			cell.data.forEach(function(d) {
+				var v = d.name + ': ' + d.valuePath;
+				for(var i = 0; i * frame.width < v.length; i++) {
+					var s = v.slice(i*frame.width, i*frame.width+frame.width);
+					Array.prototype.splice.apply(panel[y++], [frame.x, s.length].concat(s.split()));
+				}
+			}, this);
+		}, this);
+	}
+
+	/*### Cell data drawing module ###*/
 
 	this.print = function() {
+		printCellsData.apply(this);
 		// this.template.cells.forEach(function(cell) {
 		// 	var pos = cell.frame;
 		// 	for(var i=pos.y; i<pos.y+pos.height; i++) {

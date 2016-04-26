@@ -7,7 +7,8 @@ module.exports = function(template) {
 		get root() 		{ return /<root ?(.*?)>([^]*?)<\/root>/g },
 		get rows() 		{ return /<row ?(.*?)>([^]*?)<\/row>/g },
 		get attrs()		{ return /(\w+)=['"]?(.*?)['"\s]/g },
-		get columns() 	{ return /<column ?(.*?)>([^]*?)<\/column>/g }
+		get columns() 	{ return /<column ?(.*?)>([^]*?)<\/column>/g },
+		get data()		{ return /<data (.*?)\s*\/>/g }
 	};
 
 	/**/
@@ -35,7 +36,7 @@ module.exports = function(template) {
 		var children = {
 			'root': 'rows',
 			'rows': 'columns',
-			// 'columns': 'values'
+			'columns': 'data'
 		};
 
 		while(matches = r.exec(body)) {
@@ -64,6 +65,17 @@ module.exports = function(template) {
 			return c;
 		});
 		return rows;
+	}
+
+	function processCellData(column) {
+		return column.data.map(function(data) {
+			return data && data.attributes.name && data.attributes.value ? {
+				name: data.attributes.name,
+				valuePath: data.attributes.value && data.attributes.value.split('.')
+			} : undefined;
+		}).filter(function(element) {
+			return !!element;
+		});
 	}
 
 	function getCellsInfo(root) {
@@ -107,7 +119,8 @@ module.exports = function(template) {
 
 				cells.push({
 					info: column,
-					frame: frame
+					frame: frame,
+					data: processCellData(column)
 				})
 			}
 		}
