@@ -6,8 +6,9 @@ module.exports = function(template) {
 	var templateRegexes = {
 		get root() 		{ return /<root ?(.*?)>([^]*?)<\/root>/g },
 		get rows() 		{ return /<row ?(.*?)>([^]*?)<\/row>/g },
-		get attrs()		{ return /(\w+)=['"]?(.*?)['"\s]/g },
-		get columns() 	{ return /<column ?(.*?)>([^]*?)<\/column>/g }
+		get attrs()		{ return /(\w+)=['"]?(.*?)['"]/g },
+		get columns() 	{ return /<column ?(.*?)>([^]*?)<\/column>/g },
+		get data()		{ return /<data (.*?)\s*\/>/g }
 	};
 
 	/**/
@@ -35,7 +36,7 @@ module.exports = function(template) {
 		var children = {
 			'root': 'rows',
 			'rows': 'columns',
-			// 'columns': 'values'
+			'columns': 'data'
 		};
 
 		while(matches = r.exec(body)) {
@@ -64,6 +65,31 @@ module.exports = function(template) {
 			return c;
 		});
 		return rows;
+	}
+
+	function processCellData(column) {
+		return column.data.map(function(data) {
+			return data && data.attributes.name && data.attributes.value ? {
+				name: data.attributes.name,
+				valuePath: data.attributes.value && data.attributes.value.split('.')
+			} : undefined;
+		}).filter(function(element) {
+			return !!element;
+		});
+	}
+
+	function getCellDataFrame(column, frame) {
+		// Default padding is 0 1 (top: 0, right: 1, bottom: 0, left: 1)
+		var padding = (column.attributes.padding || '0 1 0 1').split(' ').map(Number);
+		if(padding.length == 2) {
+			padding = padding.concat(padding);
+		}
+		return {
+			x: frame.x + padding[3],
+			y: frame.y + padding[0],
+			width: frame.width - padding[3] - padding[1],
+			height: frame.height - padding[0] - padding[2]
+		}
 	}
 
 	function getCellsInfo(root) {
@@ -107,7 +133,9 @@ module.exports = function(template) {
 
 				cells.push({
 					info: column,
-					frame: frame
+					frame: frame,
+					dataFrame: getCellDataFrame(column, frame),
+					data: processCellData(column)
 				})
 			}
 		}
