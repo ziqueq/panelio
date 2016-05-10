@@ -142,6 +142,16 @@ module.exports = function(template) {
 		return cells;
 	}
 
+	function getAllDataPaths(cells) {
+		var result = [];
+		cells.forEach(function(cell) {
+			result.concat(cell.data.map(function(d) {
+				return d.valuePath;
+			}));
+		}, this);
+		return result;
+	}
+
 	this.root = (function() {
 		var _root = parseNode('root', template)[0];
 		processRows(_root.rows);
@@ -165,4 +175,5 @@ module.exports = function(template) {
 	})();
 
 	this.cells = getCellsInfo(this.root);
+	this.dataPaths = getAllDataPaths(this.cells);
 };

@@ -1,5 +1,24 @@
-module.exports = function() {
+var readline = require('readline');
+
+module.exports = function(__console) {
 	var basePanelSymbol = ' ';
+	this.data = {
+		standard: {
+			log: [],
+			error: []
+		},
+		custom: {}
+	};
+
+	this.setData = function(name, value) {
+		this.data.custom[name] = value;
+		this.print();
+	}
+
+	this.printStandard = function(fun, value) {
+		this.data.standard[fun].push(value);
+		print();
+	}
 
 	this.setTemplate = function(template) {
 		this.template = template;
@@ -9,10 +28,10 @@ module.exports = function() {
 	this.generatePanel = function() {
 		var windowWidth = process.stdout.columns;
 		var windowHeight = process.stdout.rows;
-		this.panel = new Array(windowHeight).fill(Array).map(function() {
+		this.panelEtalon = new Array(windowHeight).fill(Array).map(function() {
 			return new Array(windowWidth).fill(basePanelSymbol);
 		});
-		drawBorders(this.panel, this.template);
+		drawBorders(this.panelEtalon, this.template);
 		this.print()
 	}
 
@@ -83,37 +102,34 @@ module.exports = function() {
 	/*### Cell data drawing module ###*/
 
 	function printCellsData() {
-		var panel = this.panel;
+		var _panel = this.panelEtalon.map(function(row) {
+			return Array.from(row);
+		});
+
 		this.template.cells.forEach(function(cell) {
 			var frame = cell.dataFrame;
 			var y = frame.y;
 			cell.data.forEach(function(d) {
-				var v = d.name + ': ' + d.valuePath;
+				var v = d.name + ': ' + this.data.custom[d.valuePath];
 				for(var i = 0; i * frame.width < v.length; i++) {
 					var s = v.slice(i*frame.width, i*frame.width+frame.width);
-					Array.prototype.splice.apply(panel[y++], [frame.x, s.length].concat(s.split()));
+					Array.prototype.splice.apply(_panel[y++], [frame.x, s.length].concat(s.split()));
 				}
 			}, this);
 		}, this);
+		return _panel;
 	}
 
 	/*### Cell data drawing module ###*/
 
 	this.print = function() {
-		printCellsData.apply(this);
-		// this.template.cells.forEach(function(cell) {
-		// 	var pos = cell.frame;
-		// 	for(var i=pos.y; i<pos.y+pos.height; i++) {
-		// 		for(var j=pos.x; j<pos.x+pos.width; j++) {
-		// 			this.panel[i][j] = ' ';
-		// 		}
-		// 	}
-		// }, this);
-
-		var panelStr = this.panel.map(function(row) {
+		var panel = printCellsData.apply(this);
+		var panelStr = panel.map(function(row) {
 			return row.join('');
 		}).join('');
 
-		console.log(panelStr);
+		readline.clearLine(process.stdout);
+		readline.cursorTo(process.stdout, 0, 0);
+		process.stdout.write(panelStr);
 	}
 }
